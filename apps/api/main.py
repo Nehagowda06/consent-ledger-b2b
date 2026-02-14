@@ -1,7 +1,10 @@
 from fastapi import FastAPI
+from routers.health import router as health_router
 
-app = FastAPI()
+app = FastAPI(title="Consent Ledger API")
+
+app.include_router(health_router)
 
 @app.get("/")
-def health_check():
+def root():
     return {"status": "Consent Ledger API running"}
