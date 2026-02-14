@@ -148,3 +148,5 @@ venv/
 
 # Environment variables
 .env
+
+infra/docker/docker-compose.yml
