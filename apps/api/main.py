@@ -8,3 +8,6 @@ app.include_router(health_router)
 @app.get("/")
 def root():
     return {"status": "Consent Ledger API running"}
+
+from routers.consents import router as consents_router
+app.include_router(consents_router)
