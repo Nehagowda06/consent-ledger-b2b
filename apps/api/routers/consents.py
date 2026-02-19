@@ -8,6 +8,7 @@ from core.deps import get_db
 from core.db import Base, engine
 from models.consent import Consent, ConsentStatus
 from schemas.consent import ConsentCreate, ConsentOut
+from models.audit import AuditEvent 
 
 router = APIRouter(prefix="/consents", tags=["consents"])
 
@@ -20,6 +21,13 @@ def create_consent(payload: ConsentCreate, db: Session = Depends(get_db)):
     db.add(consent)
     db.commit()
     db.refresh(consent)
+     audit = AuditEvent(
+        consent_id=consent.id,
+        action="CREATED",
+        actor="system"
+    )
+    db.add(audit)
+    db.commit()
     return consent
 
 @router.get("/{consent_id}", response_model=ConsentOut)
@@ -41,9 +49,24 @@ def revoke_consent(consent_id: UUID, db: Session = Depends(get_db)):
     consent = db.get(Consent, consent_id)
     if not consent:
         raise HTTPException(status_code=404, detail="Consent not found")
+
+    # RULE: prevent double revoke
+    if consent.status == ConsentStatus.REVOKED:
+        raise HTTPException(status_code=409, detail="Consent already revoked")
+
     consent.status = ConsentStatus.REVOKED
     consent.revoked_at = datetime.now(timezone.utc)
+
     db.add(consent)
+
+    audit = AuditEvent(
+        consent_id=consent.id,
+        action="REVOKED",
+        actor="system"
+    )
+    db.add(audit)
+
     db.commit()
     db.refresh(consent)
+
     return consent
