@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker, declarative_base
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+psycopg://cl:clpass@localhost:5432/consent_ledger",
+   "postgresql+psycopg://postgres@localhost:5433/consent_ledger",
 )
 
 engine = create_engine(DATABASE_URL, pool_pre_ping=True)
