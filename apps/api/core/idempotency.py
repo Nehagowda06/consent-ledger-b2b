@@ -18,6 +18,9 @@ class IdempotencyReplay:
     status_code: int
 
 
+MAX_IDEMPOTENCY_KEY_LENGTH = 255
+
+
 def get_idempotency_key(request: Request | None) -> str | None:
     if request is None:
         return None
@@ -25,7 +28,15 @@ def get_idempotency_key(request: Request | None) -> str | None:
     if not value:
         return None
     key = value.strip()
-    return key or None
+    if not key:
+        return None
+    # LTS invariant: idempotency key format is strictly bounded to prevent
+    # unbounded storage abuse and parser ambiguity across transport layers.
+    if len(key) > MAX_IDEMPOTENCY_KEY_LENGTH:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Idempotency-Key")
+    if not all(33 <= ord(ch) <= 126 for ch in key):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid Idempotency-Key")
+    return key
 
 
 def _canonical_json(value: Any) -> str:

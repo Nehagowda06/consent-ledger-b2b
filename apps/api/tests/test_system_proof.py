@@ -52,6 +52,36 @@ class SystemProofTests(unittest.TestCase):
         self.assertTrue(result["verified"])
         self.assertIsNone(result["failure_reason"])
 
+    def test_rejects_malformed_payload_hash_even_if_chain_recomputed(self) -> None:
+        from core.system_lineage import compute_system_event_hash
+
+        forged_event = {
+            "event_type": "forged",
+            "tenant_id": None,
+            "resource_type": None,
+            "resource_id": None,
+            "payload_hash": None,
+            "prev_hash": None,
+        }
+        forged_event["event_hash"] = compute_system_event_hash(
+            event_type="forged",
+            tenant_id=None,
+            resource_type=None,
+            resource_id=None,
+            payload={"payload_hash": None},
+            prev_hash=None,
+        )
+        proof = {
+            "version": 1,
+            "generated_at": "2026-02-26T00:00:00Z",
+            "event_count": 1,
+            "last_event_hash": forged_event["event_hash"],
+            "events": [forged_event],
+        }
+        result = verify_system_proof(proof)
+        self.assertFalse(result["verified"])
+        self.assertIn("payload_hash", str(result["failure_reason"]))
+
     def test_public_verify_route_exists_without_auth_dependency(self) -> None:
         for route in main.app.routes:
             if not isinstance(route, APIRoute):

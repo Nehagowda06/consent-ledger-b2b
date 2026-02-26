@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import timezone
+import string
 from typing import Any
 
 from sqlalchemy import select
@@ -50,19 +51,36 @@ def export_system_ledger(db: Session) -> dict[str, Any]:
 
 
 def verify_system_ledger(events: list[dict[str, Any]]) -> dict[str, Any]:
+    hex_chars = set(string.hexdigits)
+
+    def _is_sha256_hex(value: Any) -> bool:
+        return isinstance(value, str) and len(value) == 64 and all(ch in hex_chars for ch in value)
+
     # System events intentionally keep payload hashes only; verification replays
     # the same chain shape by hashing that digest as canonical payload material.
     translated = []
-    for event in events:
+    for idx, event in enumerate(events):
+        payload_hash = event.get("payload_hash")
+        # LTS invariant: payload_hash/prev_hash/event_hash must remain strict SHA-256
+        # lowercase/uppercase hex-compatible 64-char strings.
+        if not _is_sha256_hex(payload_hash):
+            return {"verified": False, "failure_index": idx, "failure_reason": "invalid payload_hash"}
+        prev_hash = event.get("prev_hash")
+        if prev_hash is not None and not _is_sha256_hex(prev_hash):
+            return {"verified": False, "failure_index": idx, "failure_reason": "invalid prev_hash"}
+        event_hash = event.get("event_hash")
+        if not _is_sha256_hex(event_hash):
+            return {"verified": False, "failure_index": idx, "failure_reason": "invalid event_hash"}
+
         translated.append(
             {
                 "event_type": event.get("event_type"),
                 "tenant_id": event.get("tenant_id"),
                 "resource_type": event.get("resource_type"),
                 "resource_id": event.get("resource_id"),
-                "payload": {"payload_hash": event.get("payload_hash")},
-                "prev_hash": event.get("prev_hash"),
-                "event_hash": event.get("event_hash"),
+                "payload": {"payload_hash": payload_hash.lower()},
+                "prev_hash": prev_hash.lower() if isinstance(prev_hash, str) else None,
+                "event_hash": event_hash.lower(),
             }
         )
     return verify_system_chain(translated)

@@ -1,10 +1,10 @@
-import json
 from datetime import timezone
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from core.canonical import canonical_json_bytes
 from core.identity_crypto import compute_identity_fingerprint
 from core.lineage_anchor import compute_tenant_anchor
 from core.lineage import compute_event_hash
@@ -19,7 +19,7 @@ def _to_rfc3339(dt) -> str:
 
 
 def _canonical_bytes(obj: dict) -> bytes:
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return canonical_json_bytes(obj)
 
 
 def export_consent_lineage(

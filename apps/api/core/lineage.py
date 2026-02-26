@@ -1,18 +1,14 @@
 import hashlib
 import hmac
-import json
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from core.canonical import canonical_json
 from models.consent import Consent
 from models.consent_lineage import ConsentLineageEvent
-
-
-def canonical_json(obj: Any) -> str:
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
 
 
 def compute_event_hash(payload: dict[str, Any], prev_hash: str | None) -> str:

@@ -1,11 +1,8 @@
 import hashlib
 import hmac
-import json
 from typing import Any
 
-
-def canonical_json(obj: Any) -> str:
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False)
+from core.canonical import canonical_json
 
 
 def compute_system_event_hash(

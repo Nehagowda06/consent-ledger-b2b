@@ -1,9 +1,7 @@
-import json
-
 from fastapi import APIRouter, Body, HTTPException, Request
-from fastapi.exceptions import RequestValidationError
 
 from core.external_anchor import verify_anchor_snapshot
+from core.json_safety import validate_strict_json_object
 
 router = APIRouter(prefix="/anchors", tags=["anchors"])
 
@@ -18,10 +16,5 @@ async def verify_snapshot(
     raw = await request.body()
     if len(raw) > MAX_SNAPSHOT_VERIFY_BODY_BYTES:
         raise HTTPException(status_code=413, detail="Payload too large")
-    try:
-        json.loads(raw.decode("utf-8"))
-    except (json.JSONDecodeError, UnicodeDecodeError):
-        raise RequestValidationError(
-            [{"loc": ("body",), "msg": "Invalid JSON payload", "type": "value_error.jsondecode"}]
-        )
+    validate_strict_json_object(raw)
     return verify_anchor_snapshot(snapshot)

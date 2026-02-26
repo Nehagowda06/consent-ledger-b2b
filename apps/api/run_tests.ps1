@@ -12,5 +12,5 @@ if (-not (Test-Path $venvPython)) {
 if ($UnittestArgs -and $UnittestArgs.Count -gt 0) {
   & $venvPython -m unittest -v @UnittestArgs
 } else {
-  & $venvPython -m unittest discover -v -s tests -p "test_*.py"
+  & $venvPython tests/run_security_suite.py
 }

@@ -23,28 +23,6 @@ def _failure(index: int | None, reason: str) -> dict:
 
 
 def verify_exported_lineage(export: dict) -> dict:
-    required_top = [
-        "version",
-        "tenant_id",
-        "consent_id",
-        "algorithm",
-        "canonicalization",
-        "tenant_anchor",
-        "events",
-    ]
-    missing = [k for k in required_top if k not in export]
-    if missing:
-        return _failure(None, f"missing keys: {', '.join(missing)}")
-
-    if export.get("version") != 1:
-        return _failure(None, "unsupported version")
-    if export.get("algorithm") != "SHA256":
-        return _failure(None, "unsupported algorithm")
-    if export.get("canonicalization") != "sorted-json-no-whitespace":
-        return _failure(None, "unsupported canonicalization")
-    if not isinstance(export.get("events"), list):
-        return _failure(None, "events must be a list")
-
     has_sig_fields = any(k in export for k in ("signer_identity_fingerprint", "signer_public_key", "signature"))
     if has_sig_fields:
         if not all(k in export for k in ("signer_identity_fingerprint", "signer_public_key", "signature")):
@@ -69,6 +47,28 @@ def verify_exported_lineage(export: dict) -> dict:
                 payload={"reason": "lineage_signature_verification_failed"},
             )
             return _failure(None, "lineage signature verification failed")
+
+    required_top = [
+        "version",
+        "tenant_id",
+        "consent_id",
+        "algorithm",
+        "canonicalization",
+        "tenant_anchor",
+        "events",
+    ]
+    missing = [k for k in required_top if k not in export]
+    if missing:
+        return _failure(None, f"missing keys: {', '.join(missing)}")
+
+    if export.get("version") != 1:
+        return _failure(None, "unsupported version")
+    if export.get("algorithm") != "SHA256":
+        return _failure(None, "unsupported algorithm")
+    if export.get("canonicalization") != "sorted-json-no-whitespace":
+        return _failure(None, "unsupported canonicalization")
+    if not isinstance(export.get("events"), list):
+        return _failure(None, "events must be a list")
 
     tenant_id = str(export.get("tenant_id"))
     consent_id = str(export.get("consent_id"))
@@ -186,7 +186,10 @@ def verify_consent_proof(proof: dict) -> dict:
 
     lineage_check = verify_exported_lineage(proof["lineage"])
     if not lineage_check["verified"]:
-        return {"verified": False, "derived_state": "UNKNOWN", "failure_reason": "lineage verification failed"}
+        reason = str(lineage_check.get("failure_reason") or "lineage verification failed")
+        if "signature" in reason:
+            reason = "lineage signature verification failed"
+        return {"verified": False, "derived_state": "UNKNOWN", "failure_reason": reason}
     if not lineage_check.get("anchor_verified", False):
         return {"verified": False, "derived_state": "UNKNOWN", "failure_reason": "tenant anchor verification failed"}
 
@@ -236,9 +239,17 @@ def verify_consent_proof(proof: dict) -> dict:
     if has_sig_fields:
         if not all(k in proof for k in ("signer_identity_fingerprint", "signer_public_key", "proof_signature")):
             return {"verified": False, "derived_state": derived_state, "failure_reason": "incomplete proof signature fields"}
+        # LTS invariant: signed proof context must be bound to a signed lineage
+        # with the same signer identity/public key.
+        if not all(k in lineage for k in ("signer_identity_fingerprint", "signer_public_key", "signature")):
+            return {"verified": False, "derived_state": derived_state, "failure_reason": "signed proof requires signed lineage"}
         signer_fingerprint = str(proof["signer_identity_fingerprint"])
         signer_public_key = str(proof["signer_public_key"])
         proof_signature = str(proof["proof_signature"])
+        if not hmac.compare_digest(signer_fingerprint, str(lineage.get("signer_identity_fingerprint", ""))):
+            return {"verified": False, "derived_state": derived_state, "failure_reason": "proof and lineage signer mismatch"}
+        if not hmac.compare_digest(signer_public_key, str(lineage.get("signer_public_key", ""))):
+            return {"verified": False, "derived_state": derived_state, "failure_reason": "proof and lineage signer mismatch"}
         try:
             computed_fingerprint = compute_identity_fingerprint(signer_public_key)
         except Exception:

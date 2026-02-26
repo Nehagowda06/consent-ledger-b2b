@@ -1,9 +1,9 @@
-import json
 from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
+from core.canonical import canonical_json_bytes
 from core.identity_crypto import compute_identity_fingerprint
 from core.lineage_export import export_consent_lineage
 from core.lineage_signing import sign_bytes
@@ -42,7 +42,7 @@ def _derive_state_from_actions(included_events: list[dict]) -> str:
 
 
 def _canonical_bytes(obj: dict) -> bytes:
-    return json.dumps(obj, sort_keys=True, separators=(",", ":"), ensure_ascii=False).encode("utf-8")
+    return canonical_json_bytes(obj)
 
 
 def build_consent_proof(
@@ -59,7 +59,20 @@ def build_consent_proof(
         asserted_at = asserted_at.replace(tzinfo=timezone.utc)
     asserted_at_utc = asserted_at.astimezone(timezone.utc)
 
-    lineage = export_consent_lineage(consent_id=consent_id, tenant_id=tenant_id, db=db)
+    signer_requested = any(v is not None for v in (signer_identity_fingerprint, signer_public_key, signer_private_key_hex))
+    if signer_requested and not all(v is not None for v in (signer_identity_fingerprint, signer_public_key, signer_private_key_hex)):
+        raise ValueError("proof signing requires fingerprint, public_key, and private_key")
+
+    # LTS invariant: when proof signing is requested, lineage included inside the
+    # proof is signed by the same identity to prevent timestamp/context replay.
+    lineage = export_consent_lineage(
+        consent_id=consent_id,
+        tenant_id=tenant_id,
+        db=db,
+        signer_identity_fingerprint=signer_identity_fingerprint if signer_requested else None,
+        signer_public_key=signer_public_key if signer_requested else None,
+        signer_private_key_hex=signer_private_key_hex if signer_requested else None,
+    )
     events = lineage.get("events", [])
     latest_event_time = None
     for event in events:
@@ -102,9 +115,7 @@ def build_consent_proof(
         "lineage": lineage,
         "included_events": included_events,
     }
-    if any(v is not None for v in (signer_identity_fingerprint, signer_public_key, signer_private_key_hex)):
-        if not all(v is not None for v in (signer_identity_fingerprint, signer_public_key, signer_private_key_hex)):
-            raise ValueError("proof signing requires fingerprint, public_key, and private_key")
+    if signer_requested:
         computed_fingerprint = compute_identity_fingerprint(signer_public_key)
         if computed_fingerprint != signer_identity_fingerprint:
             raise ValueError("signer public key does not match signer_identity_fingerprint")

@@ -121,6 +121,29 @@ class IdempotencyTests(unittest.TestCase):
         self.assertEqual(len(consents), 1)
         self.assertEqual(len(audits), 1)
 
+    def test_rejects_invalid_or_oversized_idempotency_key(self) -> None:
+        with self.assertRaises(HTTPException) as overlong_exc:
+            create_consent(
+                payload=ConsentCreate(subject_id="subj-d", purpose="ops"),
+                db=self.db,
+                tenant=self.tenant,
+                request=make_request("POST", "/consents", "a" * 256),
+                response=Response(),
+            )
+        self.assertEqual(overlong_exc.exception.status_code, 400)
+        self.assertIn("Invalid Idempotency-Key", str(overlong_exc.exception.detail))
+
+        with self.assertRaises(HTTPException) as control_exc:
+            create_consent(
+                payload=ConsentCreate(subject_id="subj-e", purpose="ops"),
+                db=self.db,
+                tenant=self.tenant,
+                request=make_request("POST", "/consents", "abc\tdef"),
+                response=Response(),
+            )
+        self.assertEqual(control_exc.exception.status_code, 400)
+        self.assertIn("Invalid Idempotency-Key", str(control_exc.exception.detail))
+
 
 if __name__ == "__main__":
     unittest.main()

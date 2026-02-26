@@ -120,6 +120,22 @@ class LineageSignatureTests(unittest.TestCase):
         result = verify_consent_proof(dict(proof))
         self.assertTrue(result["verified"])
 
+    def test_signed_proof_rejects_timestamp_tampering(self) -> None:
+        proof = build_consent_proof(
+            consent_id=self.consent.id,
+            tenant_id=self.tenant.id,
+            asserted_at=datetime.now(timezone.utc),
+            db=self.db,
+            signer_identity_fingerprint=self.fingerprint,
+            signer_public_key=self.public_key_hex,
+            signer_private_key_hex=self.private_key_hex,
+        )
+        proof["lineage"]["events"][0]["created_at"] = "1999-01-01T00:00:00Z"
+        proof["included_events"][0]["created_at"] = "1999-01-01T00:00:00Z"
+        result = verify_consent_proof(dict(proof))
+        self.assertFalse(result["verified"])
+        self.assertIn("signature", str(result["failure_reason"]).lower())
+
 
 if __name__ == "__main__":
     unittest.main()
