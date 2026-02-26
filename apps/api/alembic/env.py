@@ -16,7 +16,20 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[2]))  # points to apps/api
 
 from core.db import Base
-from models.consent import Consent  # noqa: F401 (ensures model is registered)
+from models import (  # noqa: F401
+    ApiKey,
+    AuditEvent,
+    Consent,
+    ConsentLineageEvent,
+    IdentityDelegation,
+    IdentityKey,
+    IdempotencyKey,
+    SignedAssertion,
+    SystemEvent,
+    Tenant,
+    WebhookDelivery,
+    WebhookEndpoint,
+)
 
 
 # this is the Alembic Config object, which provides

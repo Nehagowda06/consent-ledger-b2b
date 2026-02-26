@@ -1,6 +1,6 @@
 import uuid
 
-from sqlalchemy import Column, DateTime, String, func, text
+from sqlalchemy import Column, DateTime, ForeignKey, String, func, text
 from sqlalchemy.dialects.postgresql import UUID
 
 from core.db import Base
@@ -10,6 +10,13 @@ class AuditEvent(Base):
     __tablename__ = "audit_events"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id = Column(
+        UUID(as_uuid=True),
+        ForeignKey("tenants.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+        server_default=text("'00000000-0000-0000-0000-000000000001'"),
+    )
     consent_id = Column(UUID(as_uuid=True), nullable=False, index=True)
     action = Column(String, nullable=False)
     actor = Column(String, nullable=False, default="system", server_default=text("'system'"))
