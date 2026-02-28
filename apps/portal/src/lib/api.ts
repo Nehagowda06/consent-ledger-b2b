@@ -1,8 +1,16 @@
 import { AuditEvent, Consent, ConsentCreateInput } from "@/lib/types";
 
 const API_BASE_URL =
-  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() || "http://127.0.0.1:8000";
+  process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ||
+  "http://127.0.0.1:8000";
 
+// Admin API key for demo / MVP
+const ADMIN_API_KEY =
+  process.env.NEXT_PUBLIC_ADMIN_API_KEY?.trim() || "";
+
+/**
+ * Central request helper
+ */
 async function request<T>(
   path: string,
   init?: RequestInit
@@ -12,6 +20,12 @@ async function request<T>(
     cache: "no-store", // REQUIRED for Next.js App Router
     headers: {
       "Content-Type": "application/json",
+
+      // 🔐 Admin authentication header
+      ...(ADMIN_API_KEY
+        ? { "X-Admin-Api-Key": ADMIN_API_KEY }
+        : {}),
+
       ...(init?.headers ?? {}),
     },
   });
@@ -61,6 +75,11 @@ export async function revokeConsent(id: string): Promise<Consent> {
   });
 }
 
+export async function getConsentAudit(
+  id: string
+): Promise<AuditEvent[]> {
+  return request<AuditEvent[]>(`/consents/${id}/audit`);
+}
 export async function getConsentAudit(
   id: string
 ): Promise<AuditEvent[]> {
