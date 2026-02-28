@@ -1,15 +1,20 @@
 import { AuditEvent, Consent, ConsentCreateInput } from "@/lib/types";
 
+/**
+ * Base API URL
+ */
 const API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE_URL?.trim() ||
   "http://127.0.0.1:8000";
 
-// Admin API key for demo / MVP
+/**
+ * Admin API Key (required for admin routes)
+ */
 const ADMIN_API_KEY =
-  process.env.NEXT_PUBLIC_ADMIN_API_KEY?.trim() || "";
+  process.env.NEXT_PUBLIC_ADMIN_API_KEY || "";
 
 /**
- * Central request helper
+ * Core request helper
  */
 async function request<T>(
   path: string,
@@ -75,11 +80,6 @@ export async function revokeConsent(id: string): Promise<Consent> {
   });
 }
 
-export async function getConsentAudit(
-  id: string
-): Promise<AuditEvent[]> {
-  return request<AuditEvent[]>(`/consents/${id}/audit`);
-}
 export async function getConsentAudit(
   id: string
 ): Promise<AuditEvent[]> {
