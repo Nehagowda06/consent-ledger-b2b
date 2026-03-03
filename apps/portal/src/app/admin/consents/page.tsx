@@ -5,20 +5,27 @@ import { AdminConsentsTable } from "@/components/admin-consents-table";
 import { EmptyState } from "@/components/empty-state";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Consent } from "@/lib/types";
 
-type SearchParams = Promise<{
+type SearchParams = {
   subject_id?: string;
   status?: "ACTIVE" | "REVOKED";
-}>;
+};
 
-export default async function AdminConsentsPage(props: { searchParams: SearchParams }) {
-  const searchParams = await props.searchParams;
+export default async function AdminConsentsPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
   const subjectId = searchParams.subject_id?.trim() || "";
   const status = searchParams.status;
 
-  const consents = await listConsents(subjectId || undefined);
+  const consents: Consent[] = await listConsents(
+    subjectId || undefined
+  );
+
   const filteredConsents = status
-    ? consents.filter((consent) => consent.status === status)
+    ? consents.filter((c) => c.status === status)
     : consents;
 
   return (
@@ -34,6 +41,7 @@ export default async function AdminConsentsPage(props: { searchParams: SearchPar
               className="pl-9"
             />
           </div>
+
           <select
             name="status"
             defaultValue={status || ""}
@@ -43,7 +51,11 @@ export default async function AdminConsentsPage(props: { searchParams: SearchPar
             <option value="ACTIVE">Active</option>
             <option value="REVOKED">Revoked</option>
           </select>
-          <Button type="submit" className="bg-indigo-500 hover:bg-indigo-600">
+
+          <Button
+            type="submit"
+            className="bg-indigo-500 hover:bg-indigo-600"
+          >
             Apply
           </Button>
         </div>

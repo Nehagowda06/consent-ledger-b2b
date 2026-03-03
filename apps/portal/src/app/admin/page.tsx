@@ -1,28 +1,43 @@
-import { Activity, ShieldAlert, ShieldCheck } from "lucide-react";
 import { listConsents, getConsentAudit } from "@/lib/api";
 import { KpiCard } from "@/components/kpi-card";
 import { QuickCreateConsent } from "@/components/quick-create-consent";
 import { AuditTimeline } from "@/components/audit-timeline";
 import { EmptyState } from "@/components/empty-state";
+import { ShieldCheck, ShieldAlert, Activity } from "lucide-react";
 
 export default async function AdminDashboardPage() {
-  const consents = await listConsents();
-  const activeCount = consents.filter((consent) => consent.status === "ACTIVE").length;
+  const response = await listConsents();
+  const consents = response.data;
 
-  const now = new Date();
-  const today = now.toISOString().slice(0, 10);
+  const activeCount = consents.filter(
+    (c) => c.status === "ACTIVE"
+  ).length;
+
+  const today = new Date().toISOString().slice(0, 10);
+
   const revokedToday = consents.filter(
-    (consent) => consent.revoked_at && consent.revoked_at.slice(0, 10) === today,
+    (c) => c.revoked_at?.slice(0, 10) === today
   ).length;
 
   const recent = [...consents]
-    .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+    .sort(
+      (a, b) =>
+        new Date(b.updated_at).getTime() -
+        new Date(a.updated_at).getTime()
+    )
     .slice(0, 6);
 
-  const audits = await Promise.all(recent.map((consent) => getConsentAudit(consent.id)));
+  const audits = await Promise.all(
+    recent.map((c) => getConsentAudit(c.id))
+  );
+
   const timelineEvents = audits
     .flat()
-    .sort((a, b) => new Date(b.at).getTime() - new Date(a.at).getTime())
+    .sort(
+      (a, b) =>
+        new Date(b.at).getTime() -
+        new Date(a.at).getTime()
+    )
     .slice(0, 10);
 
   return (
@@ -53,7 +68,10 @@ export default async function AdminDashboardPage() {
       </section>
 
       {timelineEvents.length ? (
-        <AuditTimeline events={timelineEvents} title="Recent Activity" />
+        <AuditTimeline
+          events={timelineEvents}
+          title="Recent Activity"
+        />
       ) : (
         <EmptyState
           title="No recent activity"
