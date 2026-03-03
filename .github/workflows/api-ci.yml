@@ -1,0 +1,47 @@
+name: API CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+jobs:
+  api-ci:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Create virtualenv
+        shell: pwsh
+        run: |
+          python -m venv apps/api/venv
+
+      - name: Install dependencies
+        shell: pwsh
+        run: |
+          apps/api/venv/Scripts/python.exe -m pip install --upgrade pip
+          apps/api/venv/Scripts/python.exe -m pip install -r apps/api/requirements.txt
+
+      - name: Compile Python
+        shell: pwsh
+        run: |
+          apps/api/venv/Scripts/python.exe -m compileall apps/api -x ".*[\\/](venv|__pycache__)[\\/].*"
+
+      - name: Verify Alembic heads
+        shell: pwsh
+        run: |
+          Set-Location apps/api
+          .\venv\Scripts\python.exe -m alembic heads
+
+      - name: Run tests
+        shell: pwsh
+        run: |
+          powershell -ExecutionPolicy Bypass -File .\apps\api\run_tests.ps1
